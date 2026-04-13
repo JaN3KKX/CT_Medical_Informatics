@@ -1,0 +1,111 @@
+{
+  "generated_at_utc": "2026-04-13T18:21:00.280162+00:00",
+  "input_source": "/root/CT/CT_Medical_Informatics/tomograf-obrazy/CT_ScoutView.jpg",
+  "image_shape": [
+    128,
+    128
+  ],
+  "fan_span_deg": 180.0,
+  "parallel_span_pct": 100.0,
+  "quick_mode": false,
+  "geometries": [
+    "Stożkowa",
+    "Równoległa"
+  ],
+  "experiments": [
+    {
+      "geometry": "Stożkowa",
+      "experiment": "Liczba detektorów (90-720)",
+      "points": 8,
+      "best_parameter": 90,
+      "best_rmse": 0.16771812736988068,
+      "min_rmse": 0.16771812736988068,
+      "max_rmse": 0.23772354423999786,
+      "mean_rmse": 0.21472613140940666,
+      "csv_file": "rmse_stozkowa_liczba_detektorow_90_720.csv"
+    },
+    {
+      "geometry": "Stożkowa",
+      "experiment": "Liczba skanów (90-720)",
+      "points": 8,
+      "best_parameter": 90,
+      "best_rmse": 0.17004799842834473,
+      "min_rmse": 0.17004799842834473,
+      "max_rmse": 0.19505730271339417,
+      "mean_rmse": 0.1874743551015854,
+      "csv_file": "rmse_stozkowa_liczba_skanow_90_720.csv"
+    },
+    {
+      "geometry": "Stożkowa",
+      "experiment": "Rozpiętość wachlarza (45-270)",
+      "points": 6,
+      "best_parameter": 225,
+      "best_rmse": 0.18400390446186066,
+      "min_rmse": 0.18400390446186066,
+      "max_rmse": 0.4177236557006836,
+      "mean_rmse": 0.2580054998397827,
+      "csv_file": "rmse_stozkowa_rozpietosc_wachlarza_45_270.csv"
+    },
+    {
+      "geometry": "Równoległa",
+      "experiment": "Liczba detektorów (90-720)",
+      "points": 8,
+      "best_parameter": 180,
+      "best_rmse": 0.2549668550491333,
+      "min_rmse": 0.2549668550491333,
+      "max_rmse": 0.3103242516517639,
+      "mean_rmse": 0.2810974679887295,
+      "csv_file": "rmse_rownolega_liczba_detektorow_90_720.csv"
+    },
+    {
+      "geometry": "Równoległa",
+      "experiment": "Liczba skanów (90-720)",
+      "points": 8,
+      "best_parameter": 90,
+      "best_rmse": 0.2524058222770691,
+      "min_rmse": 0.2524058222770691,
+      "max_rmse": 0.2985120415687561,
+      "mean_rmse": 0.2780737727880478,
+      "csv_file": "rmse_rownolega_liczba_skanow_90_720.csv"
+    },
+    {
+      "geometry": "Równoległa",
+      "experiment": "Rozpiętość równoległa (% przekątnej: 50-200)",
+      "points": 7,
+      "best_parameter": 75,
+      "best_rmse": 0.15390130877494812,
+      "min_rmse": 0.15390130877494812,
+      "max_rmse": 0.31497132778167725,
+      "mean_rmse": 0.23975224580083573,
+      "csv_file": "rmse_rownolega_rozpietosc_rownolega_przekatnej_50_200.csv"
+    }
+  ],
+  "combined_csv": "report_data.csv",
+  "filter_comparison_csv": "filter_comparison.csv",
+  "filter_comparison": [
+    {
+      "image": "Shepp_logan.jpg",
+      "image_source": "/root/CT/CT_Medical_Informatics/tomograf-obrazy/Shepp_logan.jpg",
+      "geometry": "Stożkowa",
+      "detectors": 360,
+      "scans": 360,
+      "fan_span_deg": 270.0,
+      "parallel_span_pct": 100.0,
+      "rmse_without_filter": 0.38214680552482605,
+      "rmse_with_filter": 0.20156258344650269,
+      "delta_rmse": 0.18058422207832336
+    },
+    {
+      "image": "CT_ScoutView.jpg",
+      "image_source": "/root/CT/CT_Medical_Informatics/tomograf-obrazy/CT_ScoutView.jpg",
+      "geometry": "Stożkowa",
+      "detectors": 360,
+      "scans": 360,
+      "fan_span_deg": 270.0,
+      "parallel_span_pct": 100.0,
+      "rmse_without_filter": 0.2529466450214386,
+      "rmse_with_filter": 0.22518706321716309,
+      "delta_rmse": 0.027759581804275513
+    }
+  ]
+}

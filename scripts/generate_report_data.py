@@ -42,6 +42,8 @@ from ct_app.reconstruction import (
     radon_transform,
 )
 
+DEFAULT_FILTER_COMPARE_IMAGES = ["Shepp_logan.jpg", "CT_ScoutView.jpg"]
+
 FULL_RANGES: Dict[str, List[int]] = {
     EXPERIMENT_DETECTORS: list(range(90, 721, 90)),
     EXPERIMENT_SCANS: list(range(90, 721, 90)),
@@ -51,6 +53,27 @@ FULL_RANGES: Dict[str, List[int]] = {
 
 
 def slugify(value: str) -> str:
+    polish_map = str.maketrans({
+        "ą": "a",
+        "ć": "c",
+        "ę": "e",
+        "ł": "l",
+        "ń": "n",
+        "ó": "o",
+        "ś": "s",
+        "ź": "z",
+        "ż": "z",
+        "Ą": "A",
+        "Ć": "C",
+        "Ę": "E",
+        "Ł": "L",
+        "Ń": "N",
+        "Ó": "O",
+        "Ś": "S",
+        "Ź": "Z",
+        "Ż": "Z",
+    })
+    value = value.translate(polish_map)
     normalized = unicodedata.normalize("NFKD", value)
     ascii_value = normalized.encode("ascii", "ignore").decode("ascii")
     slug = re.sub(r"[^a-zA-Z0-9]+", "_", ascii_value.lower()).strip("_")
@@ -141,6 +164,51 @@ def run_param_sweep(
     return values, rmse_values
 
 
+def reconstruct_image(
+    input_image: np.ndarray,
+    beam_geometry: str,
+    scan_steps: int,
+    detector_count: int,
+    fan_span_rad: float,
+    parallel_span_scale: float,
+    use_filter: bool,
+) -> np.ndarray:
+    height, width = input_image.shape
+    radius = float(np.sqrt((width / 2.0) ** 2 + (height / 2.0) ** 2))
+
+    xe_idx, ye_idx, xd_idx, yd_idx = compute_selected_geometry_indices(
+        beam_geometry,
+        scan_steps,
+        radius,
+        detector_count,
+        fan_span_rad,
+        parallel_span_scale,
+        width / 2.0,
+        height / 2.0,
+    )
+
+    sinogram = radon_transform(input_image, xe_idx, ye_idx, xd_idx, yd_idx)
+    if use_filter:
+        sinogram = filter_sinogram(sinogram).astype(np.float32)
+
+    return iradon_transform(
+        sinogram,
+        xe_idx,
+        ye_idx,
+        xd_idx,
+        yd_idx,
+        height,
+        width,
+    )
+
+
+def write_generic_csv(path: Path, rows: List[Dict[str, object]], fieldnames: List[str]) -> None:
+    with path.open("w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def write_csv(path: Path, rows: List[Dict[str, object]]) -> None:
     with path.open("w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=["geometry", "experiment", "parameter", "rmse"])
@@ -187,6 +255,47 @@ def build_parser() -> argparse.ArgumentParser:
         "--quick",
         action="store_true",
         help="Compatibility flag; keeps full parameter ranges for consistent report data.",
+    )
+    parser.add_argument(
+        "--skip-filter-comparison",
+        action="store_true",
+        help="Skip RMSE comparison with and without filtering.",
+    )
+    parser.add_argument(
+        "--filter-compare-images",
+        nargs="+",
+        default=None,
+        help="Sample image names used for filter-vs-no-filter comparison.",
+    )
+    parser.add_argument(
+        "--filter-compare-geometry",
+        default=GEOMETRY_FAN,
+        choices=[GEOMETRY_FAN, GEOMETRY_PARALLEL],
+        help="Geometry used in filter-vs-no-filter comparison.",
+    )
+    parser.add_argument(
+        "--filter-compare-detectors",
+        type=int,
+        default=360,
+        help="Detector count used in filter-vs-no-filter comparison.",
+    )
+    parser.add_argument(
+        "--filter-compare-scans",
+        type=int,
+        default=360,
+        help="Scan steps used in filter-vs-no-filter comparison.",
+    )
+    parser.add_argument(
+        "--filter-compare-fan-span-deg",
+        type=float,
+        default=270.0,
+        help="Fan span in degrees used in filter-vs-no-filter comparison.",
+    )
+    parser.add_argument(
+        "--filter-compare-parallel-span-pct",
+        type=float,
+        default=100.0,
+        help="Parallel span in percent used in filter-vs-no-filter comparison.",
     )
     return parser
 
@@ -260,6 +369,73 @@ def main() -> None:
     combined_csv = run_dir / "report_data.csv"
     write_csv(combined_csv, combined_rows)
 
+    filter_comparison_rows: List[Dict[str, object]] = []
+    filter_comparison_csv_name = None
+    if not args.skip_filter_comparison:
+        filter_image_names = args.filter_compare_images or DEFAULT_FILTER_COMPARE_IMAGES
+        filter_geometry = args.filter_compare_geometry
+        filter_fan_span_rad = float(np.radians(args.filter_compare_fan_span_deg))
+        filter_parallel_span_scale = float(args.filter_compare_parallel_span_pct / 100.0)
+
+        print(f"[INFO] Filter comparison geometry: {filter_geometry}")
+        for image_name in filter_image_names:
+            filter_image, filter_source = load_input_image(image_name, None)
+
+            reconstruction_without_filter = reconstruct_image(
+                filter_image,
+                filter_geometry,
+                args.filter_compare_scans,
+                args.filter_compare_detectors,
+                filter_fan_span_rad,
+                filter_parallel_span_scale,
+                use_filter=False,
+            )
+            reconstruction_with_filter = reconstruct_image(
+                filter_image,
+                filter_geometry,
+                args.filter_compare_scans,
+                args.filter_compare_detectors,
+                filter_fan_span_rad,
+                filter_parallel_span_scale,
+                use_filter=True,
+            )
+
+            rmse_without_filter = float(calculate_rmse(filter_image, reconstruction_without_filter))
+            rmse_with_filter = float(calculate_rmse(filter_image, reconstruction_with_filter))
+            filter_comparison_rows.append(
+                {
+                    "image": image_name,
+                    "image_source": filter_source,
+                    "geometry": filter_geometry,
+                    "detectors": int(args.filter_compare_detectors),
+                    "scans": int(args.filter_compare_scans),
+                    "fan_span_deg": float(args.filter_compare_fan_span_deg),
+                    "parallel_span_pct": float(args.filter_compare_parallel_span_pct),
+                    "rmse_without_filter": rmse_without_filter,
+                    "rmse_with_filter": rmse_with_filter,
+                    "delta_rmse": rmse_without_filter - rmse_with_filter,
+                }
+            )
+
+        filter_comparison_csv = run_dir / "filter_comparison.csv"
+        write_generic_csv(
+            filter_comparison_csv,
+            filter_comparison_rows,
+            [
+                "image",
+                "image_source",
+                "geometry",
+                "detectors",
+                "scans",
+                "fan_span_deg",
+                "parallel_span_pct",
+                "rmse_without_filter",
+                "rmse_with_filter",
+                "delta_rmse",
+            ],
+        )
+        filter_comparison_csv_name = filter_comparison_csv.name
+
     summary = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "input_source": input_source,
@@ -270,6 +446,8 @@ def main() -> None:
         "geometries": geometries,
         "experiments": summary_rows,
         "combined_csv": combined_csv.name,
+        "filter_comparison_csv": filter_comparison_csv_name,
+        "filter_comparison": filter_comparison_rows,
     }
 
     summary_path = run_dir / "summary.json"

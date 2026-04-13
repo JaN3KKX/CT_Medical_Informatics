@@ -51,7 +51,12 @@ with tab_simulation:
     if source_mode == SOURCE_BUILTIN:
         if sample_images:
             default_sample_idx = sample_images.index("CT_ScoutView.jpg") if "CT_ScoutView.jpg" in sample_images else 0
-            selected_sample = st.sidebar.selectbox("Wybierz obraz przykładowy", sample_images, index=default_sample_idx)
+            selected_sample = st.sidebar.selectbox(
+                "Wybierz obraz przykładowy",
+                sample_images,
+                index=default_sample_idx,
+                accept_new_options=False,
+            )
         else:
             st.sidebar.warning(f"Folder z przykładami nie istnieje lub jest pusty: {sample_dir}")
     else:
@@ -120,11 +125,23 @@ with tab_simulation:
             use_filter,
         )
 
+        has_current_result = has_matching_result(st.session_state, current_signature)
+        computed_input_identifier = st.session_state.get("computed_input_identifier")
+        image_changed_since_last_compute = input_identifier != computed_input_identifier
+
+        # Automatyczne przeliczenie działa dla zmian parametrów tej samej klatki wejściowej.
+        auto_recompute = (not image_changed_since_last_compute) and (not has_current_result)
+        should_run_simulation = run_simulation_clicked or auto_recompute
+
         input_col, sinogram_col, recon_col = st.columns(3)
         input_col.image(input_image, caption=f"Obraz wejściowy: {input_label}", width="stretch", clamp=True)
 
-        if run_simulation_clicked:
-            with st.spinner("Obliczanie (Radon i odwrotna Radon)..."):
+        if should_run_simulation:
+            spinner_message = "Obliczanie (Radon i odwrotna Radon)..."
+            if auto_recompute and not run_simulation_clicked:
+                spinner_message = "Parametry zmienione - automatyczne przeliczanie..."
+
+            with st.spinner(spinner_message):
                 sim_result = run_simulation(
                     input_image,
                     beam_geometry,
@@ -135,9 +152,16 @@ with tab_simulation:
                     use_filter,
                 )
                 save_simulation_result(st.session_state, sim_result, current_signature)
-                st.success("Obliczenia zakończone.")
 
-        if has_matching_result(st.session_state, current_signature):
+                # Identyfikator obrazu, dla ktorego ostatnio policzono wynik.
+                st.session_state["computed_input_identifier"] = input_identifier
+
+                has_current_result = True
+
+                if run_simulation_clicked:
+                    st.success("Obliczenia zakończone.")
+
+        if has_current_result:
             max_steps = st.session_state["reconstruction_history"].shape[0]
             step_idx = st.slider("Podgląd iteracji", 1, max_steps, max_steps) - 1
 
@@ -166,11 +190,11 @@ with tab_simulation:
 
             st.divider()
             st.subheader("Eksport do DICOM")
-            patient_name = st.text_input("Imię i nazwisko pacjenta", "Anna Nowak")
-            patient_id = st.text_input("ID pacjenta", "PL-CT-2026-0001")
+            patient_name = st.text_input("Imię i nazwisko pacjenta", "Jan Kowalski")
+            patient_id = st.text_input("ID pacjenta", "1234567890")
             scan_comments = st.text_input(
                 "Komentarz do badania",
-                "Kontrolne badanie TK klatki piersiowej - pacjent zgłasza poprawę samopoczucia.",
+                "Badanie tomograficzne.",
             )
 
             dicom_file = create_dicom(
@@ -190,7 +214,10 @@ with tab_simulation:
                 mime="application/dicom",
             )
         else:
-            st.info("Obraz wejściowy lub parametry zostały zmienione. Kliknij 'Uruchom symulację', aby przeliczyć wyniki.")
+            if image_changed_since_last_compute:
+                st.info("Zmieniono obraz wejściowy. Kliknij 'Uruchom symulację', aby policzyć wyniki dla nowego obrazu.")
+            else:
+                st.info("Nie udało się przeliczyć wyników automatycznie. Kliknij 'Uruchom symulację'.")
 
 with tab_experiments:
     st.header("Moduł Analizy Statystycznej (Wykresy RMSE)")

@@ -1,0 +1,9 @@
+geometry,experiment,parameter,rmse
+Równoległa,Liczba detektorów (90-720),90,0.2645936608314514
+Równoległa,Liczba detektorów (90-720),180,0.2549668550491333
+Równoległa,Liczba detektorów (90-720),270,0.2655002772808075
+Równoległa,Liczba detektorów (90-720),360,0.3103242516517639
+Równoległa,Liczba detektorów (90-720),450,0.2988598644733429
+Równoległa,Liczba detektorów (90-720),540,0.2997685670852661
+Równoległa,Liczba detektorów (90-720),630,0.2780791223049164
+Równoległa,Liczba detektorów (90-720),720,0.2766871452331543

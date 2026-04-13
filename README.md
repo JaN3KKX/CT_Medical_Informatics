@@ -103,6 +103,16 @@ Wlasny obraz spoza katalogu probek:
 python3 scripts/generate_report_data.py --image-path /sciezka/do/obrazu.png
 ```
 
+Porownanie RMSE z filtrem i bez filtra dla wybranych obrazow:
+```bash
+python3 scripts/generate_report_data.py --filter-compare-images Shepp_logan.jpg CT_ScoutView.jpg
+```
+
+Pominiecie sekcji porownania filtra:
+```bash
+python3 scripts/generate_report_data.py --skip-filter-comparison
+```
+
 ## Co generuje skrypt raportowy
 Skrypt tworzy katalog uruchomienia:
 `report_data/YYYYMMDD_HHMMSS/`
@@ -110,7 +120,8 @@ Skrypt tworzy katalog uruchomienia:
 W srodku znajduja sie:
 - `report_data.csv` - zbiorcza tabela RMSE,
 - `rmse_<geometria>_<eksperyment>.csv` - pliki per eksperyment,
-- `summary.json` - podsumowanie metryk (best/min/max/mean RMSE).
+- `filter_comparison.csv` - RMSE z filtrem i bez filtra,
+- `summary.json` - podsumowanie metryk (best/min/max/mean RMSE + porownanie filtra).
 
 ## Przeplyw danych
 1. `ct.py` zbiera parametry od uzytkownika.
