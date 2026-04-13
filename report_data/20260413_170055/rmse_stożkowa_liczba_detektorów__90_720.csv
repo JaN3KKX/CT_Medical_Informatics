@@ -1,0 +1,9 @@
+geometry,experiment,parameter,rmse
+Stożkowa,Liczba detektorów (90-720),90,0.16771812736988068
+Stożkowa,Liczba detektorów (90-720),180,0.1896195262670517
+Stożkowa,Liczba detektorów (90-720),270,0.21022465825080872
+Stożkowa,Liczba detektorów (90-720),360,0.2217763066291809
+Stożkowa,Liczba detektorów (90-720),450,0.224842369556427
+Stożkowa,Liczba detektorów (90-720),540,0.23014402389526367
+Stożkowa,Liczba detektorów (90-720),630,0.23576049506664276
+Stożkowa,Liczba detektorów (90-720),720,0.23772354423999786
