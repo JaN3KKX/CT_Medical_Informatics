@@ -35,6 +35,7 @@ from ct_app.image_utils import (
     list_sample_images,
     preprocess_image,
     resolve_sample_dir,
+    stabilize_sinogram,
 )
 from ct_app.reconstruction import (
     compute_selected_geometry_indices,
@@ -117,6 +118,10 @@ def run_param_sweep(
     fan_span_rad: float,
     parallel_span_scale: float,
 ) -> Tuple[List[int], List[float]]:
+    center_x = (width - 1) / 2.0
+    center_y = (height - 1) / 2.0
+    radius_corr = float(np.sqrt(center_x**2 + center_y**2))
+
     values = [int(v) for v in parameter_values]
     rmse_values: List[float] = []
 
@@ -140,15 +145,15 @@ def run_param_sweep(
         xe_idx, ye_idx, xd_idx, yd_idx = compute_selected_geometry_indices(
             beam_geometry,
             scan_steps,
-            radius,
+            radius_corr,
             detector_count,
             fan_span_current,
             parallel_span_current,
-            width / 2.0,
-            height / 2.0,
+            center_x,
+            center_y,
         )
 
-        sinogram = radon_transform(input_image, xe_idx, ye_idx, xd_idx, yd_idx)
+        sinogram = stabilize_sinogram(radon_transform(input_image, xe_idx, ye_idx, xd_idx, yd_idx))
         filtered_sinogram = filter_sinogram(sinogram).astype(np.float32)
         reconstruction = iradon_transform(
             filtered_sinogram,
@@ -174,7 +179,9 @@ def reconstruct_image(
     use_filter: bool,
 ) -> np.ndarray:
     height, width = input_image.shape
-    radius = float(np.sqrt((width / 2.0) ** 2 + (height / 2.0) ** 2))
+    center_x = (width - 1) / 2.0
+    center_y = (height - 1) / 2.0
+    radius = float(np.sqrt(center_x**2 + center_y**2))
 
     xe_idx, ye_idx, xd_idx, yd_idx = compute_selected_geometry_indices(
         beam_geometry,
@@ -183,11 +190,11 @@ def reconstruct_image(
         detector_count,
         fan_span_rad,
         parallel_span_scale,
-        width / 2.0,
-        height / 2.0,
+        center_x,
+        center_y,
     )
 
-    sinogram = radon_transform(input_image, xe_idx, ye_idx, xd_idx, yd_idx)
+    sinogram = stabilize_sinogram(radon_transform(input_image, xe_idx, ye_idx, xd_idx, yd_idx))
     if use_filter:
         sinogram = filter_sinogram(sinogram).astype(np.float32)
 

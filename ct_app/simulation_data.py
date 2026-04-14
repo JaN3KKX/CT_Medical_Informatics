@@ -1,5 +1,7 @@
 import numpy as np
+import pydicom
 from skimage import io
+from skimage import transform
 
 from .app_config import SOURCE_BUILTIN
 from .image_utils import filter_sinogram, preprocess_image
@@ -15,6 +17,7 @@ def load_input_image(source_mode, selected_sample, uploaded_file, sample_dir):
     input_image = None
     input_identifier = None
     input_label = None
+    input_study_date = None
 
     try:
         if source_mode == SOURCE_BUILTIN and selected_sample is not None:
@@ -23,13 +26,28 @@ def load_input_image(source_mode, selected_sample, uploaded_file, sample_dir):
             input_identifier = f"sample::{sample_path}"
             input_label = selected_sample
         elif uploaded_file is not None:
-            input_image = preprocess_image(io.imread(uploaded_file))
+            upload_name = uploaded_file.name.lower()
+            if upload_name.endswith(".dcm"):
+                dataset = pydicom.dcmread(uploaded_file)
+                pixel_data = dataset.pixel_array.astype(np.float32)
+                slope = float(getattr(dataset, "RescaleSlope", 1.0))
+                intercept = float(getattr(dataset, "RescaleIntercept", 0.0))
+                pixel_data = np.squeeze(pixel_data * slope + intercept)
+                input_image = preprocess_image(pixel_data)
+
+                study_date_raw = getattr(dataset, "StudyDate", "")
+                study_date_digits = "".join(ch for ch in str(study_date_raw) if ch.isdigit())
+                if len(study_date_digits) == 8:
+                    input_study_date = study_date_digits
+            else:
+                input_image = preprocess_image(io.imread(uploaded_file))
+
             input_identifier = f"upload::{uploaded_file.name}:{uploaded_file.size}"
             input_label = uploaded_file.name
-    except Exception as err:  # pylint: disable=broad-except
-        return None, None, None, str(err)
+    except Exception as err:
+        return None, None, None, None, str(err)
 
-    return input_image, input_identifier, input_label, None
+    return input_image, input_identifier, input_label, input_study_date, None
 
 
 def build_result_signature(
@@ -66,7 +84,9 @@ def run_simulation(
 ):
     """Wykonuje pełną symulację i zwraca komplet danych do prezentacji."""
     height, width = input_image.shape
-    radius = np.sqrt((width / 2) ** 2 + (height / 2) ** 2)
+    center_x = (width - 1) / 2.0
+    center_y = (height - 1) / 2.0
+    radius = np.sqrt(center_x**2 + center_y**2)
 
     xe_idx, ye_idx, xd_idx, yd_idx = compute_selected_geometry_indices(
         beam_geometry,
@@ -75,8 +95,8 @@ def run_simulation(
         detector_count,
         fan_span_rad,
         parallel_span_scale,
-        width / 2.0,
-        height / 2.0,
+        center_x,
+        center_y,
     )
 
     sinogram = radon_transform(input_image, xe_idx, ye_idx, xd_idx, yd_idx)
@@ -132,6 +152,21 @@ def _normalize_for_display(image):
     return image
 
 
+def _resize_sinogram_for_display(sinogram, target_size=256):
+    """Skaluje sinogram do stalego rozmiaru podgladu (UI), bez zmiany danych obliczeniowych."""
+    if sinogram.ndim != 2:
+        return sinogram
+
+    resized = transform.resize(
+        sinogram,
+        (target_size, target_size),
+        anti_aliasing=True,
+        preserve_range=True,
+        mode="reflect",
+    )
+    return resized.astype(np.float32)
+
+
 def build_preview_frames(sinogram_data, reconstruction_history, hit_count_map, step_idx):
     """Buduje podgląd sinogramu i rekonstrukcji dla bieżącego kroku."""
     max_steps = reconstruction_history.shape[0]
@@ -150,7 +185,8 @@ def build_preview_frames(sinogram_data, reconstruction_history, hit_count_map, s
             out=np.zeros_like(current_rec),
         )
 
-    return _normalize_for_display(current_sin), _normalize_for_display(current_rec)
+    sinogram_preview = _resize_sinogram_for_display(current_sin)
+    return _normalize_for_display(sinogram_preview), _normalize_for_display(current_rec)
 
 
 def build_snapshot_frames(reconstruction_history, hit_count_map, snapshot_count):

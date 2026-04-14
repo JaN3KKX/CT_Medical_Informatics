@@ -6,7 +6,15 @@ from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import generate_uid
 
 
-def create_dicom(image_data, patient_name, patient_id, comments):
+def _normalize_study_date(study_date):
+    if study_date is not None:
+        date_digits = "".join(ch for ch in str(study_date) if ch.isdigit())
+        if len(date_digits) == 8:
+            return date_digits
+    return datetime.datetime.now().strftime("%Y%m%d")
+
+
+def create_dicom(image_data, patient_name, patient_id, comments, study_date=None):
     """Zapisuje zrekonstruowany obraz jako obiekt DICOM."""
     normalized_image = (image_data - np.min(image_data)) / (np.max(image_data) - np.min(image_data) + 1e-8)
     pixel_data = (normalized_image * 65535).astype(np.uint16)
@@ -21,7 +29,7 @@ def create_dicom(image_data, patient_name, patient_id, comments):
 
     ds.PatientName = patient_name
     ds.PatientID = patient_id
-    ds.StudyDate = datetime.datetime.now().strftime("%Y%m%d")
+    ds.StudyDate = _normalize_study_date(study_date)
     ds.ImageComments = comments
 
     ds.SamplesPerPixel = 1

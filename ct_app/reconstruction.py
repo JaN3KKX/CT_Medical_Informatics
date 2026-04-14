@@ -2,6 +2,10 @@ import numpy as np
 from numba import njit
 
 
+CORNER_SAMPLE_WEIGHT = 0.2
+DETECTOR_APERTURE_OFFSET = 1.0
+
+
 @njit(cache=True)
 def compute_fan_geometry_indices(steps, r, n, phi, cx, cy):
     """Prekalkuluje indeksy zrodla i detektorow dla geometrii wachlarzowej."""
@@ -84,86 +88,123 @@ def compute_selected_geometry_indices(
 
 
 @njit(cache=True)
-def line_integral(image, x0, y0, x1, y1):
-    """Sumuje wartosci pikseli i liczy poprawne probki na odcinku."""
+def line_integral_bresenham(image, x0, y0, x1, y1):
+    """Sumuje wartosci pikseli i liczy probki supercover na odcinku Bresenhama."""
     h, w = image.shape
     dx = abs(x1 - x0)
-    dy = abs(y1 - y0)
-    sx = -1 if x0 > x1 else 1
-    sy = -1 if y0 > y1 else 1
-    x = x0
-    y = y0
+    dy = -abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx + dy
 
     line_sum = 0.0
-    valid_samples = 0
+    valid_samples = 0.0
 
-    if dx > dy:
-        err = dx / 2.0
-        while True:
-            if 0 <= x < w and 0 <= y < h:
-                line_sum += image[y, x]
-                valid_samples += 1
-            if x == x1:
-                break
-            err -= dy
-            if err < 0:
-                y += sy
-                err += dx
-            x += sx
-    else:
-        err = dy / 2.0
-        while True:
-            if 0 <= x < w and 0 <= y < h:
-                line_sum += image[y, x]
-                valid_samples += 1
-            if y == y1:
-                break
-            err -= dx
-            if err < 0:
-                x += sx
-                err += dy
-            y += sy
+    while True:
+        if 0 <= x0 < w and 0 <= y0 < h:
+            line_sum += image[y0, x0]
+            valid_samples += 1.0
+        if x0 == x1 and y0 == y1:
+            break
+
+        e2 = 2 * err
+        moved_x = False
+        moved_y = False
+        prev_x = x0
+        prev_y = y0
+
+        if e2 >= dy:
+            err += dy
+            x0 += sx
+            moved_x = True
+        if e2 <= dx:
+            err += dx
+            y0 += sy
+            moved_y = True
+
+        if moved_x and moved_y:
+            if 0 <= x0 < w and 0 <= prev_y < h:
+                line_sum += CORNER_SAMPLE_WEIGHT * image[prev_y, x0]
+                valid_samples += CORNER_SAMPLE_WEIGHT
+            if 0 <= prev_x < w and 0 <= y0 < h:
+                line_sum += CORNER_SAMPLE_WEIGHT * image[y0, prev_x]
+                valid_samples += CORNER_SAMPLE_WEIGHT
+
+    return line_sum, valid_samples
+
+
+@njit(cache=True)
+def line_integral(image, x0, y0, x1, y1):
+    """Modeluje szerokosc detektora jako srednia z kilku linii Bresenhama."""
+    line_sum_center, valid_center = line_integral_bresenham(image, x0, y0, x1, y1)
+
+    ray_dx = float(x1 - x0)
+    ray_dy = float(y1 - y0)
+    ray_len = np.sqrt(ray_dx * ray_dx + ray_dy * ray_dy)
+    if ray_len <= 1e-6:
+        return line_sum_center, valid_center
+
+    norm_x = -ray_dy / ray_len
+    norm_y = ray_dx / ray_len
+
+    x0_plus = int(np.rint(x0 + DETECTOR_APERTURE_OFFSET * norm_x))
+    y0_plus = int(np.rint(y0 + DETECTOR_APERTURE_OFFSET * norm_y))
+    x1_plus = int(np.rint(x1 + DETECTOR_APERTURE_OFFSET * norm_x))
+    y1_plus = int(np.rint(y1 + DETECTOR_APERTURE_OFFSET * norm_y))
+
+    x0_minus = int(np.rint(x0 - DETECTOR_APERTURE_OFFSET * norm_x))
+    y0_minus = int(np.rint(y0 - DETECTOR_APERTURE_OFFSET * norm_y))
+    x1_minus = int(np.rint(x1 - DETECTOR_APERTURE_OFFSET * norm_x))
+    y1_minus = int(np.rint(y1 - DETECTOR_APERTURE_OFFSET * norm_y))
+
+    line_sum_plus, valid_plus = line_integral_bresenham(image, x0_plus, y0_plus, x1_plus, y1_plus)
+    line_sum_minus, valid_minus = line_integral_bresenham(image, x0_minus, y0_minus, x1_minus, y1_minus)
+
+    line_sum = 0.5 * line_sum_center + 0.25 * line_sum_plus + 0.25 * line_sum_minus
+    valid_samples = 0.5 * valid_center + 0.25 * valid_plus + 0.25 * valid_minus
 
     return line_sum, valid_samples
 
 
 @njit(cache=True)
 def backproject_line(output_image, hit_count, x0, y0, x1, y1, val):
-    """Dodaje wartosc projekcji na odcinku i sledzi pokrycie pikseli."""
+    """Dodaje wartosc projekcji na odcinku i sledzi pokrycie supercover."""
     h, w = output_image.shape
     dx = abs(x1 - x0)
-    dy = abs(y1 - y0)
-    sx = -1 if x0 > x1 else 1
-    sy = -1 if y0 > y1 else 1
-    x = x0
-    y = y0
+    dy = -abs(y1 - y0)
+    sx = 1 if x0 < x1 else -1
+    sy = 1 if y0 < y1 else -1
+    err = dx + dy
 
-    if dx > dy:
-        err = dx / 2.0
-        while True:
-            if 0 <= x < w and 0 <= y < h:
-                output_image[y, x] += val
-                hit_count[y, x] += 1.0
-            if x == x1:
-                break
-            err -= dy
-            if err < 0:
-                y += sy
-                err += dx
-            x += sx
-    else:
-        err = dy / 2.0
-        while True:
-            if 0 <= x < w and 0 <= y < h:
-                output_image[y, x] += val
-                hit_count[y, x] += 1.0
-            if y == y1:
-                break
-            err -= dx
-            if err < 0:
-                x += sx
-                err += dy
-            y += sy
+    while True:
+        if 0 <= x0 < w and 0 <= y0 < h:
+            output_image[y0, x0] += val
+            hit_count[y0, x0] += 1.0
+        if x0 == x1 and y0 == y1:
+            break
+
+        e2 = 2 * err
+        moved_x = False
+        moved_y = False
+        prev_x = x0
+        prev_y = y0
+
+        if e2 >= dy:
+            err += dy
+            x0 += sx
+            moved_x = True
+        if e2 <= dx:
+            err += dx
+            y0 += sy
+            moved_y = True
+
+        if moved_x and moved_y:
+            if 0 <= x0 < w and 0 <= prev_y < h:
+                output_image[prev_y, x0] += CORNER_SAMPLE_WEIGHT * val
+                hit_count[prev_y, x0] += CORNER_SAMPLE_WEIGHT
+            if 0 <= prev_x < w and 0 <= y0 < h:
+                output_image[y0, prev_x] += CORNER_SAMPLE_WEIGHT * val
+                hit_count[y0, prev_x] += CORNER_SAMPLE_WEIGHT
 
 
 @njit(cache=True)
@@ -181,7 +222,9 @@ def radon_transform(image, xe_idx, ye_idx, xd_idx, yd_idx):
             y1 = yd_idx[s, i]
             line_sum, valid_samples = line_integral(image, x0, y0, x1, y1)
             if valid_samples > 0:
-                sinogram[s, i] = line_sum / valid_samples
+                # Projekcja CT jest addytywna: dzielenie przez liczbe probek
+                # wprowadza niefizyczna modulacje od kata i daje wzory "krzyzykow".
+                sinogram[s, i] = line_sum
 
     return sinogram
 

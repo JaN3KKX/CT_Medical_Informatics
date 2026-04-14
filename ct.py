@@ -1,4 +1,5 @@
 import io as bytes_io
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -62,7 +63,7 @@ with tab_simulation:
     else:
         uploaded_file = st.sidebar.file_uploader(
             "Wgraj obraz wejściowy",
-            type=["jpg", "png", "jpeg", "bmp", "tif", "tiff"],
+            type=["jpg", "png", "jpeg", "bmp", "tif", "tiff", "dcm"],
         )
 
     st.sidebar.divider()
@@ -100,7 +101,7 @@ with tab_simulation:
     use_filter = st.sidebar.checkbox("Użyj filtrowania (splot)", value=True)
     run_simulation_clicked = st.sidebar.button("Uruchom symulację", use_container_width=True)
 
-    input_image, input_identifier, input_label, load_error = load_input_image(
+    input_image, input_identifier, input_label, input_study_date, load_error = load_input_image(
         source_mode,
         selected_sample,
         uploaded_file,
@@ -112,7 +113,9 @@ with tab_simulation:
 
     if input_image is not None:
         height, width = input_image.shape
-        radius = np.sqrt((width / 2) ** 2 + (height / 2) ** 2)
+        center_x = (width - 1) / 2.0
+        center_y = (height - 1) / 2.0
+        radius = np.sqrt(center_x**2 + center_y**2)
 
         current_signature = build_result_signature(
             RECON_ALGO_VERSION,
@@ -129,7 +132,6 @@ with tab_simulation:
         computed_input_identifier = st.session_state.get("computed_input_identifier")
         image_changed_since_last_compute = input_identifier != computed_input_identifier
 
-        # Automatyczne przeliczenie działa dla zmian parametrów tej samej klatki wejściowej.
         auto_recompute = (not image_changed_since_last_compute) and (not has_current_result)
         should_run_simulation = run_simulation_clicked or auto_recompute
 
@@ -153,7 +155,6 @@ with tab_simulation:
                 )
                 save_simulation_result(st.session_state, sim_result, current_signature)
 
-                # Identyfikator obrazu, dla ktorego ostatnio policzono wynik.
                 st.session_state["computed_input_identifier"] = input_identifier
 
                 has_current_result = True
@@ -190,8 +191,15 @@ with tab_simulation:
 
             st.divider()
             st.subheader("Eksport do DICOM")
+
+            auto_study_date = input_study_date or datetime.now().strftime("%Y%m%d")
+            if st.session_state.get("study_date_source_identifier") != input_identifier:
+                st.session_state["study_date_input"] = auto_study_date
+                st.session_state["study_date_source_identifier"] = input_identifier
+
             patient_name = st.text_input("Imię i nazwisko pacjenta", "Jan Kowalski")
             patient_id = st.text_input("ID pacjenta", "1234567890")
+            study_date = st.text_input("Data badania (YYYYMMDD)", key="study_date_input")
             scan_comments = st.text_input(
                 "Komentarz do badania",
                 "Badanie tomograficzne.",
@@ -202,6 +210,7 @@ with tab_simulation:
                 patient_name,
                 patient_id,
                 scan_comments,
+                study_date,
             )
 
             dicom_buffer = bytes_io.BytesIO()

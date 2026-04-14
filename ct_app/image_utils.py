@@ -27,6 +27,27 @@ def filter_sinogram(sinogram):
     return filtered
 
 
+def stabilize_sinogram(sinogram):
+    """Lagodzi aliasing sinogramu (detektory i kat) modelem szerokosci detektora."""
+    if sinogram.ndim != 2:
+        return sinogram
+
+    smoothed_angle = (
+        0.25 * np.roll(sinogram, 1, axis=0)
+        + 0.5 * sinogram
+        + 0.25 * np.roll(sinogram, -1, axis=0)
+    )
+
+    padded_detectors = np.pad(smoothed_angle, ((0, 0), (1, 1)), mode="edge")
+    smoothed = (
+        0.25 * padded_detectors[:, :-2]
+        + 0.5 * padded_detectors[:, 1:-1]
+        + 0.25 * padded_detectors[:, 2:]
+    )
+
+    return smoothed.astype(np.float32)
+
+
 def calculate_rmse(img1, img2):
     """Oblicza blad sredniokwadratowy (RMSE)."""
     i1 = (img1 - np.min(img1)) / (np.max(img1) - np.min(img1) + 1e-8)
