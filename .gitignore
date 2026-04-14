@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.numba_cache/
+.mypy_cache/
+venv/
+.venv/
+.env
+.DS_Store
+dist/
+build/
+*.egg-info/
+report_data_test*/
+*.dcm
+report*
+scripts*
