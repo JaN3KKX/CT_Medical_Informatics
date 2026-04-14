@@ -1,9 +1,0 @@
-geometry,experiment,parameter,rmse
-Równoległa,Liczba skanów (90-720),90,0.2524058222770691
-Równoległa,Liczba skanów (90-720),180,0.2549668550491333
-Równoległa,Liczba skanów (90-720),270,0.28977862000465393
-Równoległa,Liczba skanów (90-720),360,0.2827209234237671
-Równoległa,Liczba skanów (90-720),450,0.29237431287765503
-Równoległa,Liczba skanów (90-720),540,0.28918227553367615
-Równoległa,Liczba skanów (90-720),630,0.26464933156967163
-Równoległa,Liczba skanów (90-720),720,0.2985120415687561

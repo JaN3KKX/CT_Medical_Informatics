@@ -1,3 +1,0 @@
-image,image_source,geometry,detectors,scans,fan_span_deg,parallel_span_pct,rmse_without_filter,rmse_with_filter,delta_rmse
-Shepp_logan.jpg,/root/CT/CT_Medical_Informatics/tomograf-obrazy/Shepp_logan.jpg,Stożkowa,360,360,270.0,100.0,0.38214680552482605,0.20156258344650269,0.18058422207832336
-CT_ScoutView.jpg,/root/CT/CT_Medical_Informatics/tomograf-obrazy/CT_ScoutView.jpg,Stożkowa,360,360,270.0,100.0,0.2529466450214386,0.22518706321716309,0.027759581804275513

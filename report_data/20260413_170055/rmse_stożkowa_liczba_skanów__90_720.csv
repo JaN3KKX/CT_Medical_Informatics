@@ -1,9 +1,0 @@
-geometry,experiment,parameter,rmse
-Stożkowa,Liczba skanów (90-720),90,0.17004799842834473
-Stożkowa,Liczba skanów (90-720),180,0.1896195262670517
-Stożkowa,Liczba skanów (90-720),270,0.17755521833896637
-Stożkowa,Liczba skanów (90-720),360,0.19505730271339417
-Stożkowa,Liczba skanów (90-720),450,0.18840567767620087
-Stożkowa,Liczba skanów (90-720),540,0.19217675924301147
-Stożkowa,Liczba skanów (90-720),630,0.19295568764209747
-Stożkowa,Liczba skanów (90-720),720,0.19397667050361633
