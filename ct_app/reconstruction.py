@@ -222,8 +222,6 @@ def radon_transform(image, xe_idx, ye_idx, xd_idx, yd_idx):
             y1 = yd_idx[s, i]
             line_sum, valid_samples = line_integral(image, x0, y0, x1, y1)
             if valid_samples > 0:
-                # Projekcja CT jest addytywna: dzielenie przez liczbe probek
-                # wprowadza niefizyczna modulacje od kata i daje wzory "krzyzykow".
                 sinogram[s, i] = line_sum
 
     return sinogram
