@@ -1,7 +1,7 @@
 # Symulator Tomografii CT
 
 ## Opis projektu
-Projekt to aplikacja Streamlit do symulacji tomografii komputerowej (CT).
+Projekt to aplikacja Streamlit do symulacji tomografu komputerowego (CT).
 Aplikacja pozwala:
 - wybrac obraz wejsciowy (probki lub upload),
 - wybrac geometrie wiazki (stozkowa lub rownolegla),
@@ -59,9 +59,6 @@ Aplikacja pozwala:
 - `tomograf-obrazy/`
   - obrazy probkowe wykorzystywane przez aplikacje i skrypty.
 
-- `scripts/generate_report_data.py`
-  - skrypt CLI do generowania danych raportowych (CSV + JSON).
-
 ## Wymagania
 Python 3.10+ oraz biblioteki:
 - streamlit
@@ -76,52 +73,6 @@ Python 3.10+ oraz biblioteki:
 pip install -r requirements.txt
 streamlit run ct.py
 ```
-
-## Generowanie danych do raportu
-Pelny przebieg:
-```bash
-python3 scripts/generate_report_data.py
-```
-
-Tryb kompatybilnosci (zachowuje pelne zakresy parametrow):
-```bash
-python3 scripts/generate_report_data.py --quick
-```
-
-Tylko jedna geometria:
-```bash
-python3 scripts/generate_report_data.py --geometry "Równoległa"
-```
-
-Inny obraz probkowy:
-```bash
-python3 scripts/generate_report_data.py --image Shepp_logan.jpg
-```
-
-Wlasny obraz spoza katalogu probek:
-```bash
-python3 scripts/generate_report_data.py --image-path /sciezka/do/obrazu.png
-```
-
-Porownanie RMSE z filtrem i bez filtra dla wybranych obrazow:
-```bash
-python3 scripts/generate_report_data.py --filter-compare-images Shepp_logan.jpg CT_ScoutView.jpg
-```
-
-Pominiecie sekcji porownania filtra:
-```bash
-python3 scripts/generate_report_data.py --skip-filter-comparison
-```
-
-## Co generuje skrypt raportowy
-Skrypt tworzy katalog uruchomienia:
-`report_data/YYYYMMDD_HHMMSS/`
-
-W srodku znajduja sie:
-- `report_data.csv` - zbiorcza tabela RMSE,
-- `rmse_<geometria>_<eksperyment>.csv` - pliki per eksperyment,
-- `filter_comparison.csv` - RMSE z filtrem i bez filtra,
-- `summary.json` - podsumowanie metryk (best/min/max/mean RMSE + porownanie filtra).
 
 ## Przeplyw danych
 1. `ct.py` zbiera parametry od uzytkownika.
